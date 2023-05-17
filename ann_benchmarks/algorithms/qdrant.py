@@ -28,7 +28,7 @@ class Qdrant(BaseANN):
         self.batch_results = []
 
         qdrant_client_params = {
-            "host": "localhost",
+            "host": "a844d98d31e04401aa3083a28e8c53bc-1603106068.us-west-2.elb.amazonaws.com",
             "port": 6333,
             "grpc_port": 6334,
             "prefer_grpc": self._grpc,
