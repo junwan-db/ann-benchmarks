@@ -10,7 +10,7 @@ from qdrant_client.http.models import (CollectionStatus, Distance,
 
 from .base import BaseANN
 
-TIMEOUT = 30
+# TIMEOUT = 30
 BATCH_SIZE = 128
 
 
@@ -27,14 +27,14 @@ class Qdrant(BaseANN):
         self._search_params = {"hnsw_ef": None, "rescore": True}
         self.batch_results = []
 
-        qdrant_client_params = {
-            "host": "a844d98d31e04401aa3083a28e8c53bc-1603106068.us-west-2.elb.amazonaws.com",
-            "port": 6333,
-            "grpc_port": 6334,
-            "prefer_grpc": self._grpc,
-            "https": False,
-        }
-        self._client = QdrantClient(**qdrant_client_params)
+        # qdrant_client_params = {
+        #     "host": "a844d98d31e04401aa3083a28e8c53bc-1603106068.us-west-2.elb.amazonaws.com",
+        #     "port": 6333,
+        #     "grpc_port": 6334,
+        #     "prefer_grpc": self._grpc,
+        #     "https": False,
+        # }
+        self._client = QdrantClient(host="a844d98d31e04401aa3083a28e8c53bc-1603106068.us-west-2.elb.amazonaws.com", port=6333, grpc_port=6334, prefer_grpc=self._grpc)
 
     def fit(self, X):
         if X.dtype != np.float32:
@@ -64,7 +64,7 @@ class Qdrant(BaseANN):
                 ef_construct=self._ef_construct,
                 m=self._m,
             ),
-            timeout=TIMEOUT,
+            # timeout=TIMEOUT,
         )
 
         self._client.upload_collection(
@@ -108,7 +108,10 @@ class Qdrant(BaseANN):
             )
         )
 
-        search_result = self._client.grpc_points.Search(search_request, timeout=TIMEOUT)
+        search_result = self._client.grpc_points.Search(
+          search_request, 
+          # timeout=TIMEOUT
+        )
         result_ids = [point.id.num for point in search_result.result]
         return result_ids
 
@@ -151,7 +154,7 @@ class Qdrant(BaseANN):
                     search_points=request_batch,
                     read_consistency=None,
                 ),
-                timeout=TIMEOUT,
+                # timeout=TIMEOUT,
             )
 
             for r in grpc_res.result:
