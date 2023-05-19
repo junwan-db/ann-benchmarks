@@ -16,7 +16,7 @@ def get_build_stats(dataset, algo, path):
         for file in f:
             if file.endswith(".hdf5"):
                 read_file = h5py.File(os.path.join(algo_results,file), 'r')
-                setting = file.split(".")[0]
+                setting = file.split(".")[0].rsplit('_', 1)[0]
                 results[setting] = {"build_time": read_file.attrs["build_time"], "index_size": read_file.attrs["index_size"]}
 
     build_stats_json = f"{dataset}-{algo}-build-stats.json"
