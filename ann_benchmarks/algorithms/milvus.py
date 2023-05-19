@@ -88,7 +88,7 @@ class Milvus(BaseANN):
         # wait for index to be loaded to memory
         index_loaded_in_memory = False
         while not index_loaded_in_memory:
-          progress = utility.load_state(self._collection_name)
+          progress = utility.loading_progress(self._collection_name)
           if progress["loading_progress"] != "100%":
             print(f"waiting for index to load in memory, progress: {progress['loading_progress']}")
             time.sleep(5)
