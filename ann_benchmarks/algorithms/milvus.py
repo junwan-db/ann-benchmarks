@@ -1,6 +1,7 @@
 import numpy as np
 import pymilvus
 import time
+import uuid
 from pymilvus import (
     connections,
     utility,
@@ -39,28 +40,45 @@ class Milvus(BaseANN):
         connections.connect("default", host="a998d9a8e92ca417bab33af706b62ed4-1569009960.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
-          FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=True),
+          FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False),
           FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=self._dim)
         ]
         schema = CollectionSchema(fields, "benchmarking")
         self._milvus_collection = Collection(self._collection_name, schema)
+        # release index from previous run
+        try:
+          self._milvus_collection.release()
+          self._milvus_collection.drop_index()
+        except Exception as e:
+          print(f"failed to release previous index with error {str(e)}")
+        # milvus similarity search doesn't support returning the embedding vector
+        # maintain a in memory store with id to embedding vectors for benchmarking
+        self._embedding_dict = dict()
+
+
+    def _chunk_dictionary(self, dictionary, chunk_size):
+      keys = list(dictionary.keys())
+      chunks = [keys[i:i+chunk_size] for i in range(0, len(keys), chunk_size)]
+      return [{k: dictionary[k] for k in chunk} for chunk in chunks]
+
 
     def fit(self, X):
         # self.client = pyknowhere.Index(self._metric_type, self._dim, len(X), self._index_m, self._index_ef)
         # self.client.add(X, numpy.arange(len(X)))
 
-        # build collection
         dataset_size = len(X)
         print(f"dataset size: {dataset_size}")
-        i = 0
-        while i < dataset_size:
-          print(f"ingesting data rows from {i} to {min(i+INDEX_CHUNK_SIZE, dataset_size)}")
-          self._milvus_collection.insert([X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]])
-          i += INDEX_CHUNK_SIZE
+        embedding_chunk = {
+          str(uuid.uuid4()): v
+          for v in X
+        }
+        self._embedding_dict.update(embedding_chunk)
 
+        print("adding data to collection")
+        for chunk in self._chunk_dictionary(embedding_chunk, INDEX_CHUNK_SIZE):
+          self._milvus_collection.insert(chunk)
 
         print("added to collection, creating index")
-
         # build index
         index = {
           "index_type": "HNSW",
@@ -77,7 +95,7 @@ class Milvus(BaseANN):
           progress = utility.index_building_progress(self._collection_name)
           if progress["indexed_rows"] < progress["total_rows"]:
             print(f"waiting for index to build, indexed rows: {progress['indexed_rows']}, total rows: {progress['total_rows']}")
-            time.sleep(5)
+            time.sleep(3)
           else:
             print("indexing complete")
             index_created = True
@@ -91,7 +109,7 @@ class Milvus(BaseANN):
           progress = utility.loading_progress(self._collection_name)
           if progress["loading_progress"] != "100%":
             print(f"waiting for index to load in memory, progress: {progress['loading_progress']}")
-            time.sleep(5)
+            time.sleep(3)
           else:
             print("index loaded complete")
             index_loaded_in_memory = True
@@ -114,19 +132,18 @@ class Milvus(BaseANN):
           data=X,
           anns_field="embeddings",
           param={
-            "ef": self._search_ef
+            "metric_type": "IP",
+            "params": {
+              "ef": self._search_ef
+            }
           },
           limit=n,
-          expr=None,
-          output_fields=["embeddings"]
+          expr=None
         )
         self.batch_results = [
           [
-            [
-              hit.entity.get("embeddings")
-              for hit in hits
-            ]
-            for hits in result
+            self._embedding_dict[hit.id]
+            for hit in result
           ]
           for result in results
         ]
