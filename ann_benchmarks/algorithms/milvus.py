@@ -57,6 +57,7 @@ class Milvus(BaseANN):
           print(f"ingesting data rows from {i} to {min(i+INDEX_CHUNK_SIZE, dataset_size)}")
           self._milvus_collection.insert([X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]])
           i += INDEX_CHUNK_SIZE
+          self._milvus_collection.flush()
 
         self._milvus_collection.flush()
 
