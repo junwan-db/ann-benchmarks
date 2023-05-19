@@ -40,7 +40,7 @@ class Milvus(BaseANN):
         connections.connect("default", host="a21d3a5d0c499434f9310b66869abb07-675851668.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
-          FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=36),
+          FieldSchema(name="pk", dtype=DataType.INT32, is_primary=True, auto_id=False),
           FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=self._dim)
         ]
         schema = CollectionSchema(fields, "benchmarking")
@@ -53,9 +53,6 @@ class Milvus(BaseANN):
         except Exception as e:
           print(f"failed to release previous index with error {str(e)}")
         print("init complete")
-        # milvus similarity search doesn't support returning the embedding vector
-        # maintain a in memory store with id to embedding vectors for benchmarking
-        self._embedding_dict = dict()
 
 
     def _chunk_dictionary(self, dictionary, chunk_size):
@@ -70,19 +67,16 @@ class Milvus(BaseANN):
 
         dataset_size = len(X)
         print(f"dataset size: {dataset_size}")
-        embedding_chunk = {
-          str(uuid.uuid4()): v
-          for v in X
-        }
-        self._embedding_dict.update(embedding_chunk)
 
         print("adding data to collection")
-        for chunk in self._chunk_dictionary(embedding_chunk, INDEX_CHUNK_SIZE):
-          chunk_arr = [
-            list(chunk.keys()),
-            list(chunk.values())
-          ]
-          self._milvus_collection.insert(chunk_arr)
+
+        while i <= dataset_size:
+          chunk = X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]
+          self._milvus_collection.insert([
+            list(range(i, min(i+INDEX_CHUNK_SIZE, dataset_size))),
+            chunk
+          ])
+          i += INDEX_CHUNK_SIZE
 
         print("added to collection, creating index")
         # build index
@@ -148,7 +142,7 @@ class Milvus(BaseANN):
         )
         self.batch_results = [
           [
-            self._embedding_dict[hit.id]
+            int(hit.id)
             for hit in result
           ]
           for result in results
