@@ -36,7 +36,7 @@ class Milvus(BaseANN):
         self._index_ef = index_param.get("efConstruction", None)
         self._search_ef = None
         # self.client = None
-        self._collection_name = "milvus_ann_benchmarks_test"
+        self._collection_name = "ann_benchmarks_test"
         connections.connect("default", host="a998d9a8e92ca417bab33af706b62ed4-1569009960.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
@@ -45,12 +45,14 @@ class Milvus(BaseANN):
         ]
         schema = CollectionSchema(fields, "benchmarking")
         self._milvus_collection = Collection(self._collection_name, schema)
+        print("created collection, releasing index from previous run")
         # release index from previous run
         try:
           self._milvus_collection.release()
           self._milvus_collection.drop_index()
         except Exception as e:
           print(f"failed to release previous index with error {str(e)}")
+        print("init complete")
         # milvus similarity search doesn't support returning the embedding vector
         # maintain a in memory store with id to embedding vectors for benchmarking
         self._embedding_dict = dict()
