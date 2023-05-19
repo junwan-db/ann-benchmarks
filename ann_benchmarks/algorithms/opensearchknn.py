@@ -39,9 +39,10 @@ class OpenSearchKNN(BaseANN):
 
         raise RuntimeError("Failed to connect to OpenSearch")
 
-    def fit(self, X):
+    def fit(self, X): 
+        # allow period refreshes and use all three data nodes
         body = {
-            "settings": {"index": {"knn": True}, "number_of_shards": 1, "number_of_replicas": 0, "refresh_interval": -1}
+            "settings": {"index": {"knn": True}, "number_of_shards": 3, "number_of_replicas": 0}
         }
 
         mapping = {
@@ -65,22 +66,26 @@ class OpenSearchKNN(BaseANN):
         self.freeIndex()
         self.client.indices.create(self.name, body=body)
         self.client.indices.put_mapping(mapping, self.name)
-
+        
         print("Uploading data to the Index:", self.name)
-
+            
         def gen():
             for i, vec in enumerate(tqdm(X)):
                 yield {"_op_type": "index", "_index": self.name, "vec": vec.tolist(), "id": str(i + 1)}
-
-        (_, errors) = bulk(self.client, gen(), chunk_size=500, max_retries=2, request_timeout=1000)
+        
+        # Bulk refresh requests were taking a long time and we causing timeouts. Since we capturing the refresh time in
+        # the build time, refresh as we index data so that we don't see timeouts. Increased the chunk size to account for periodic refreshes.
+        (_, errors) = bulk(self.client, gen(), chunk_size=1500, max_retries=10, request_timeout=1000, refresh="wait_for")
         assert len(errors) == 0, errors
 
-        print("Force Merge...")
-        self.client.indices.forcemerge(self.name, max_num_segments=1, request_timeout=1000)
-
-        print("Refreshing the Index...")
-        self.client.indices.refresh(self.name, request_timeout=1000)
-
+        print("Dummy searching to ensure index got refresh: ", self.name)
+        dummy_search_response = self.client.search(index=self.name)
+        
+        print("No more indexing requiredl Turning off refreshing for: ", self.name)
+        self.client.indices.put_settings(index=self.name, body={
+                "index.refresh_interval": "-1"
+            })
+        
         print("Running Warmup API...")
         # res = urlopen(Request("http://localhost:9200/_plugins/_knn/warmup/" + self.name + "?pretty"))
         # print(res.read().decode("utf-8"))
@@ -108,7 +113,7 @@ class OpenSearchKNN(BaseANN):
             docvalue_fields=["id"],
             stored_fields="_none_",
             filter_path=["hits.hits.fields.id"],
-            request_timeout=10,
+            request_timeout=100,
         )
         # print(f"=finished one query :{res}")
         return [int(h["fields"]["id"][0]) - 1 for h in res["hits"]["hits"]]
