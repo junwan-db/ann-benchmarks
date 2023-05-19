@@ -55,12 +55,6 @@ class Milvus(BaseANN):
         print("init complete")
 
 
-    def _chunk_dictionary(self, dictionary, chunk_size):
-      keys = list(dictionary.keys())
-      chunks = [keys[i:i+chunk_size] for i in range(0, len(keys), chunk_size)]
-      return [{k: dictionary[k] for k in chunk} for chunk in chunks]
-
-
     def fit(self, X):
         # self.client = pyknowhere.Index(self._metric_type, self._dim, len(X), self._index_m, self._index_ef)
         # self.client.add(X, numpy.arange(len(X)))
@@ -70,10 +64,12 @@ class Milvus(BaseANN):
 
         print("adding data to collection")
         i = 0
-        while i <= dataset_size:
-          chunk = X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]
+        while i < dataset_size:
+          ceiling = min(i+INDEX_CHUNK_SIZE, dataset_size)
+          print(f"adding data from row {i} to {ceiling}")
+          chunk = X[i:ceiling]
           self._milvus_collection.insert([
-            list(range(i, min(i+INDEX_CHUNK_SIZE, dataset_size))),
+            list(range(i, ceiling)),
             chunk
           ])
           i += INDEX_CHUNK_SIZE
