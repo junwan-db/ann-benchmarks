@@ -37,7 +37,7 @@ class Milvus(BaseANN):
         self._search_ef = None
         # self.client = None
         self._collection_name = "ann_benchmarks_test"
-        connections.connect("default", host="a998d9a8e92ca417bab33af706b62ed4-1569009960.us-west-2.elb.amazonaws.com", port="19530")
+        connections.connect("default", host="a21d3a5d0c499434f9310b66869abb07-675851668.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
           FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=36),
