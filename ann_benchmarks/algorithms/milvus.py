@@ -35,8 +35,8 @@ class Milvus(BaseANN):
         self._index_ef = index_param.get("efConstruction", None)
         self._search_ef = None
         # self.client = None
-        self._collection_name = "ann_benchmarks_test_milvus"
-        connections.connect("default", host="a5e9f321a3b4249cc857193c97a28820-1115516199.us-west-2.elb.amazonaws.com", port="19530")
+        self._collection_name = "milvus_ann_benchmarks_test"
+        connections.connect("default", host="a998d9a8e92ca417bab33af706b62ed4-1569009960.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
           FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=True),
@@ -57,9 +57,6 @@ class Milvus(BaseANN):
           print(f"ingesting data rows from {i} to {min(i+INDEX_CHUNK_SIZE, dataset_size)}")
           self._milvus_collection.insert([X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]])
           i += INDEX_CHUNK_SIZE
-          self._milvus_collection.flush()
-
-        self._milvus_collection.flush()
 
         print("added to collection, creating index")
 
