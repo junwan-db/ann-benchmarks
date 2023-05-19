@@ -12,7 +12,7 @@ from pymilvus import (
 
 from .base import BaseANN
 
-INDEX_CHUNK_SIZE = 500000
+INDEX_CHUNK_SIZE = 250000
 
 def metric_mapping(_metric: str):
     _metric_type = {"angular": "IP", "euclidean": "L2"}.get(_metric, None)
@@ -36,9 +36,10 @@ class Milvus(BaseANN):
         self._search_ef = None
         # self.client = None
         self._collection_name = "ann_benchmarks_test"
-        connections.connect("default", host="a1554b19dd6be4ce696ca34b5824d2fd-824950804.us-west-2.elb.amazonaws.com", port="19530")
+        connections.connect("default", host="a5e9f321a3b4249cc857193c97a28820-1115516199.us-west-2.elb.amazonaws.com", port="19530")
+
         fields = [
-          FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+          FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=True),
           FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=self._dim)
         ]
         schema = CollectionSchema(fields, "benchmarking")
@@ -52,11 +53,12 @@ class Milvus(BaseANN):
         dataset_size = len(X)
         print(f"dataset size: {dataset_size}")
         i = 0
-        while i + INDEX_CHUNK_SIZE <= dataset_size:
+        while i < dataset_size:
           print(f"ingesting data rows from {i} to {min(i+INDEX_CHUNK_SIZE, dataset_size)}")
           self._milvus_collection.insert([X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]])
-          self._milvus_collection.flush()
           i += INDEX_CHUNK_SIZE
+
+        self._milvus_collection.flush()
 
         # build index
         index = {
@@ -67,20 +69,21 @@ class Milvus(BaseANN):
             "efConstruction": self._index_ef
           }
         }
+
         self._milvus_collection.create_index("embeddings", index)
+        print("created index, loading to memory")
+        self._milvus_collection.load()
 
         # wait for index to be loaded to memory
         index_loaded_in_memory = False
         while not index_loaded_in_memory:
-          try:
-            self.query(X[0], 1)
+          progress = utility.index_building_progress(self._collection_name)
+          if progress["indexed_rows"] < progress["total_rows"]:
+            print(f"waiting for index to build, indexed rows: {progress['indexed_rows']}, total rows: {progress['total_rows']}")
+            time.sleep(5)
+          else:
+            print("indexing complete")
             index_loaded_in_memory = True
-          except Exception as e:
-            if not "has not been loaded to memory or load failed" in str(e):
-              raise e
-            else:
-              print("waiting for index to build")
-              time.sleep(10)
 
 
     def set_query_arguments(self, ef):
