@@ -108,7 +108,7 @@ class Milvus(BaseANN):
         # return self.client.search(v, k=n)
         res = self.batch_query([v], n)[0]
         print(f"query result: {res}")
-        return self.batch_query([v], n)[0]
+        return res[0]
     
     def batch_query(self, X, n):
         # return self.client.search(v, k=n)
