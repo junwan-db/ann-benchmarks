@@ -78,7 +78,11 @@ class Milvus(BaseANN):
 
         print("adding data to collection")
         for chunk in self._chunk_dictionary(embedding_chunk, INDEX_CHUNK_SIZE):
-          self._milvus_collection.insert(chunk)
+          chunk_arr = [
+            list(chunk.keys()),
+            list(chunk.values())
+          ]
+          self._milvus_collection.insert(chunk_arr)
 
         print("added to collection, creating index")
         # build index
