@@ -60,6 +60,8 @@ class Milvus(BaseANN):
 
         self._milvus_collection.flush()
 
+        print("added to collection, creating index")
+
         # build index
         index = {
           "index_type": "HNSW",
@@ -71,18 +73,28 @@ class Milvus(BaseANN):
         }
 
         self._milvus_collection.create_index("embeddings", index)
-        print("created index, loading to memory")
-        self._milvus_collection.load()
-
-        # wait for index to be loaded to memory
-        index_loaded_in_memory = False
-        while not index_loaded_in_memory:
+        index_created = False
+        while not index_created:
           progress = utility.index_building_progress(self._collection_name)
           if progress["indexed_rows"] < progress["total_rows"]:
             print(f"waiting for index to build, indexed rows: {progress['indexed_rows']}, total rows: {progress['total_rows']}")
             time.sleep(5)
           else:
             print("indexing complete")
+            index_created = True
+
+        print("created index, loading to memory")
+        self._milvus_collection.load()
+
+        # wait for index to be loaded to memory
+        index_loaded_in_memory = False
+        while not index_loaded_in_memory:
+          progress = utility.load_state(self._collection_name)
+          if progress["loading_progress"] != "100%":
+            print(f"waiting for index to load in memory, progress: {progress['loading_progress']}")
+            time.sleep(5)
+          else:
+            print("index loaded complete")
             index_loaded_in_memory = True
 
 
