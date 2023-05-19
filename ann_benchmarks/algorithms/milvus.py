@@ -40,7 +40,7 @@ class Milvus(BaseANN):
         connections.connect("default", host="a998d9a8e92ca417bab33af706b62ed4-1569009960.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
-          FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False),
+          FieldSchema(name="pk", dtype=DataType.VARCHAR, is_primary=True, auto_id=False, max_length=36),
           FieldSchema(name="embeddings", dtype=DataType.FLOAT_VECTOR, dim=self._dim)
         ]
         schema = CollectionSchema(fields, "benchmarking")
