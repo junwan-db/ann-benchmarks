@@ -75,7 +75,7 @@ class OpenSearchKNN(BaseANN):
         
         # Bulk refresh requests were taking a long time and we causing timeouts. Since we capturing the refresh time in
         # the build time, refresh as we index data so that we don't see timeouts. Increased the chunk size to account for periodic refreshes.
-        (_, errors) = bulk(self.client, gen(), chunk_size=1500, max_retries=5, request_timeout=1000, refresh="wait_for")
+        (_, errors) = bulk(self.client, gen(), chunk_size=1500, max_retries=10, request_timeout=1000, refresh="wait_for")
         assert len(errors) == 0, errors
 
         print("Dummy searching to ensure index got refresh: ", self.name)
