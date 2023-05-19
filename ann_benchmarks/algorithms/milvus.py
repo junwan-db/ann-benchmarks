@@ -69,7 +69,7 @@ class Milvus(BaseANN):
         print(f"dataset size: {dataset_size}")
 
         print("adding data to collection")
-
+        i = 0
         while i <= dataset_size:
           chunk = X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]
           self._milvus_collection.insert([
