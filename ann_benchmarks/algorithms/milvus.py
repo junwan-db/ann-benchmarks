@@ -12,7 +12,7 @@ from pymilvus import (
 
 from .base import BaseANN
 
-INDEX_CHUNK_SIZE = 250000
+INDEX_CHUNK_SIZE = 10000
 
 def metric_mapping(_metric: str):
     _metric_type = {"angular": "IP", "euclidean": "L2"}.get(_metric, None)
@@ -57,6 +57,7 @@ class Milvus(BaseANN):
           print(f"ingesting data rows from {i} to {min(i+INDEX_CHUNK_SIZE, dataset_size)}")
           self._milvus_collection.insert([X[i:min(i+INDEX_CHUNK_SIZE, dataset_size)]])
           i += INDEX_CHUNK_SIZE
+
 
         print("added to collection, creating index")
 
