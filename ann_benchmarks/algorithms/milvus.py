@@ -37,7 +37,7 @@ class Milvus(BaseANN):
         self._search_ef = None
         # self.client = None
         self._collection_name = "ann_benchmarks_test"
-        connections.connect("default", host="a21d3a5d0c499434f9310b66869abb07-675851668.us-west-2.elb.amazonaws.com", port="19530")
+        connections.connect("default", host="a34fa5e86b2534b3789de9368296a945-1273755413.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
           FieldSchema(name="pk", dtype=DataType.INT64, is_primary=True, auto_id=False),
@@ -122,7 +122,7 @@ class Milvus(BaseANN):
         # print(f"query result: {res}")
         return res
     
-    
+
     def batch_query(self, X, n):
         # return self.client.search(v, k=n)
         results = self._milvus_collection.search(
