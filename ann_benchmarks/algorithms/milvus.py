@@ -36,7 +36,7 @@ class Milvus(BaseANN):
         self._index_ef = index_param.get("efConstruction", None)
         self._search_ef = None
         # self.client = None
-        self._collection_name = "gist_ann_benchmarks_test"
+        self._collection_name = "ann_gist_benchmarks_test"
         connections.connect("default", host="a21d3a5d0c499434f9310b66869abb07-675851668.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
