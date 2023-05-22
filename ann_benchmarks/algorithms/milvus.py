@@ -36,7 +36,7 @@ class Milvus(BaseANN):
         self._index_ef = index_param.get("efConstruction", None)
         self._search_ef = None
         # self.client = None
-        self._collection_name = "ann_gist_benchmarks_test"
+        self._collection_name = "ann_benchmarks_test"
         connections.connect("default", host="a21d3a5d0c499434f9310b66869abb07-675851668.us-west-2.elb.amazonaws.com", port="19530")
 
         fields = [
@@ -47,21 +47,15 @@ class Milvus(BaseANN):
         self._milvus_collection = Collection(self._collection_name, schema)
         print("created collection, releasing index from previous run")
         # release index from previous run
-        try:
-          self._milvus_collection.release()
-          self._milvus_collection.drop_index()
-        except Exception as e:
-          print(f"failed to release previous index with error {str(e)}")
+        self.freeIndex()
         print("init complete")
-
 
     def fit(self, X):
         # self.client = pyknowhere.Index(self._metric_type, self._dim, len(X), self._index_m, self._index_ef)
         # self.client.add(X, numpy.arange(len(X)))
-
+        self.freeIndex()
         dataset_size = len(X)
         print(f"dataset size: {dataset_size}")
-
         print("adding data to collection")
         i = 0
         while i < dataset_size:
@@ -110,18 +104,15 @@ class Milvus(BaseANN):
             print("index loaded complete")
             index_loaded_in_memory = True
 
-
     def set_query_arguments(self, ef):
         self._search_ef = ef
         # self.client.set_param(ef)
-
 
     def query(self, v, n):
         # return self.client.search(v, k=n)
         res = self.batch_query([v], n)[0]
         # print(f"query result: {res}")
         return res
-    
 
     def batch_query(self, X, n):
         # return self.client.search(v, k=n)
@@ -148,6 +139,10 @@ class Milvus(BaseANN):
     
     def get_batch_results(self):
         return self.batch_results
+      
+    def freeIndex(self):
+        self._milvus_collection.release()
+        self._milvus_collection.drop_index()
 
     def __str__(self):
         return f"Milvus(index_M:{self._index_m},index_ef:{self._index_ef},search_ef={self._search_ef})"
