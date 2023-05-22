@@ -144,7 +144,7 @@ class Milvus(BaseANN):
         self._milvus_collection.release()
         self._milvus_collection.drop_index()
 
-    def done(self);
+    def done(self):
         self.freeIndex()
         utility.drop_collection(self._collection_name)
 
