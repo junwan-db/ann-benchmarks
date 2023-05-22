@@ -150,6 +150,10 @@ function""" % (
             descriptor["algo"] = definition.algorithm
             descriptor["dataset"] = dataset
             store_results(dataset, count, definition, query_arguments, descriptor, results, batch)
+        
+        # Free the index since it is not needed anymore
+        print("Removing index to save space")
+        algo.freeIndex()
     finally:
         algo.done()
 
