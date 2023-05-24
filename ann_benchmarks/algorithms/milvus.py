@@ -50,12 +50,6 @@ class Milvus(BaseANN):
         self.freeIndex()
         print("init complete")
 
-    
-    def _normalize(self, X):
-      norms = np.linalg.norm(mat, axis=1, keepdims=True)
-      normalized_mat = mat / norms
-      return normalized_mat
-
 
     def fit(self, X):
         # self.client = pyknowhere.Index(self._metric_type, self._dim, len(X), self._index_m, self._index_ef)
@@ -68,10 +62,11 @@ class Milvus(BaseANN):
         while i < dataset_size:
           ceiling = min(i+INDEX_CHUNK_SIZE, dataset_size)
           print(f"adding data from row {i} to {ceiling}")
+          
           chunk = X[i:ceiling]
           if self._metric_type == "IP":
             print("normalizing the vectors")
-            chunk = self._normalize(chunk)
+            chunk = chunk / np.linalg.norm(chunk, axis=1, keepdims=True)
 
           self._milvus_collection.insert([
             list(range(i, ceiling)),
@@ -128,7 +123,7 @@ class Milvus(BaseANN):
     def batch_query(self, X, n):
         # return self.client.search(v, k=n)
         if self._metric_type == "IP":
-          X = self._normalize(X)
+          X = [v / np.linalg.norm(v) for v in X]
         results = self._milvus_collection.search(
           data=X,
           anns_field="embeddings",
