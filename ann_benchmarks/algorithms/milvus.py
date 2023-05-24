@@ -66,8 +66,9 @@ class Milvus(BaseANN):
           chunk = X[i:ceiling]
           if self._metric_type == "IP":
             print("normalizing the vectors")
+            chunk = np.nan_to_num(np.array(chunk))
             chunk = chunk / np.linalg.norm(chunk, axis=1, keepdims=True)
-
+            chunk = np.nan_to_num(chunk)
           self._milvus_collection.insert([
             list(range(i, ceiling)),
             chunk
@@ -123,7 +124,10 @@ class Milvus(BaseANN):
     def batch_query(self, X, n):
         # return self.client.search(v, k=n)
         if self._metric_type == "IP":
-          X = [v / np.linalg.norm(v) for v in X]
+          X = [
+            np.nan_to_num(np.nan_to_num(np.array(v)) / np.linalg.norm(np.nan_to_num(np.array(v))))
+            for v in X
+          ]
         results = self._milvus_collection.search(
           data=X,
           anns_field="embeddings",
