@@ -15,7 +15,7 @@ def metric_mapping(_metric: str):
 
 
 class Pinecone(BaseANN):
-    def __init__(self, metric, dim):
+    def __init__(self, metric, dim, index_param):
         pinecone.init(api_key="473f4e1a-1388-4a2c-abd3-e08c22a80fa1", environment="us-east-1-aws")
         self._index_name = f"ann_benchmark_{metric}_{dim}_{random.randint(0, 1000000)}"
         self._dim = dim
