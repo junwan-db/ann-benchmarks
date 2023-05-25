@@ -271,6 +271,14 @@ float:
         HNSW:
           args: { "R": [8, 16, 32, 48, 64, 96, 128],  "level" : [1, 2, 3], "L": 300 }  # index
           query-args: [ [ 10, 20, 30, 40, 60, 80, 120, 200, 400, 600, 800, 1000 ] ]  # ef
+    pinecone:
+      docker-tag: ann-benchmarks-pinecone
+      module: ann_benchmarks.algorithms.pinecone
+      constructor: Pinecone
+      base-args: ["@metric", "@dimension"]
+      run-groups:
+        base:
+          args: {}
     nearpy:
       disabled: true
       docker-tag: ann-benchmarks-nearpy
