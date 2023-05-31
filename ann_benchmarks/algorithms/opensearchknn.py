@@ -3,6 +3,7 @@ from urllib.request import Request, urlopen
 
 from opensearchpy import ConnectionError, OpenSearch
 from opensearchpy.helpers import bulk
+from opensearchpy.connection import Urllib3HttpConnection
 from tqdm import tqdm
 import requests
 from requests.auth import HTTPBasicAuth
@@ -16,19 +17,17 @@ class OpenSearchKNN(BaseANN):
         self.method_param = method_param
         self.param_string = "-".join(k + "-" + str(v) for k, v in self.method_param.items()).lower()
         self.name = f"os-{self.param_string}"
-        self.host = 'https://a48bd3af4666e48a6aa34d2b065ff232-665731428.us-west-2.elb.amazonaws.com'
+        self.host = 'http://ad927cdbc47e14edea28b2f800c28348-1231483935.us-west-2.elb.amazonaws.com'
         self.client = OpenSearch(
-            hosts = [self.host],
-            http_auth = ('admin', 'admin'),
-            use_ssl = True,
-            verify_certs = False,
-            ssl_assert_hostname = False,
-            ssl_show_warn = False,
-            timeout = 1000,
+          hosts = [self.host],
+          http_auth = ('admin', 'admin'),
+          use_ssl = False,
+          retry_on_timeout=True,
+          timeout=100
         )
         self._wait_for_health_status()
 
-    def _wait_for_health_status(self, wait_seconds=30, status="yellow"):
+    def _wait_for_health_status(self, wait_seconds=1500, status="yellow"):
         for _ in range(wait_seconds):
             try:
                 self.client.cluster.health(wait_for_status=status)
@@ -39,8 +38,7 @@ class OpenSearchKNN(BaseANN):
 
         raise RuntimeError("Failed to connect to OpenSearch")
 
-    def fit(self, X): 
-        # allow period refreshes and use all three data nodes
+    def fit(self, X):
         body = {
             "settings": {"index": {"knn": True}, "number_of_shards": 3, "number_of_replicas": 0}
         }
@@ -63,40 +61,43 @@ class OpenSearchKNN(BaseANN):
                 },
             }
         }
-        self.freeIndex()
-        self.client.indices.create(self.name, body=body)
-        self.client.indices.put_mapping(mapping, self.name)
+
         
+
+        self.freeIndex()
+
+        print("Creating new index Index:", self.name)
+        self.client.indices.create(self.name, body=body, request_timeout=1000)
+        self.client.indices.put_mapping(mapping, self.name, request_timeout=1000)
+
+        self._wait_for_health_status()
         print("Uploading data to the Index:", self.name)
-            
+
         def gen():
             for i, vec in enumerate(tqdm(X)):
                 yield {"_op_type": "index", "_index": self.name, "vec": vec.tolist(), "id": str(i + 1)}
-        
-        # Bulk refresh requests were taking a long time and we causing timeouts. Since we capturing the refresh time in
-        # the build time, refresh as we index data so that we don't see timeouts. Increased the chunk size to account for periodic refreshes.
-        (_, errors) = bulk(self.client, gen(), chunk_size=1500, max_retries=10, request_timeout=1000, refresh="wait_for")
+
+        (_, errors) = bulk(self.client, gen(), chunk_size=3000, max_retries=10, request_timeout=1000, refresh="wait_for")
         assert len(errors) == 0, errors
 
-        print("Dummy searching to ensure index got refresh: ", self.name)
+        print("Force Merge...")
+        self.client.indices.forcemerge(self.name, max_num_segments=5, request_timeout=1000)
+
+        print("Dummy searching to ensure refresh: ", self.name)
         dummy_search_response = self.client.search(index=self.name)
         
-        print("No more indexing requiredl Turning off refreshing for: ", self.name)
+        print("Turning off refreshing for: ", self.name)
         self.client.indices.put_settings(index=self.name, body={
                 "index.refresh_interval": "-1"
             })
-        
-        print("Running Warmup API...")
-        # res = urlopen(Request("http://localhost:9200/_plugins/_knn/warmup/" + self.name + "?pretty"))
-        # print(res.read().decode("utf-8"))
-       
-        # Suppress only the single warning from urllib3 needed.
-        # requests.packages.urllib3.disable_warnings(category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-        response = requests.get(self.host + "/_plugins/_knn/warmup/" + self.name + "?pretty", 
+        print("Running Warmup API...")
+
+        response = requests.get(self.host + ":9200/_plugins/_knn/warmup/" + self.name + "?pretty", 
                                 verify=False, 
                                 auth=HTTPBasicAuth('admin', 'admin'))
         print(response.text)
+        self._wait_for_health_status()
 
     def set_query_arguments(self, ef):
         body = {"settings": {"index": {"knn.algo_param.ef_search": ef}}}
@@ -113,7 +114,7 @@ class OpenSearchKNN(BaseANN):
             docvalue_fields=["id"],
             stored_fields="_none_",
             filter_path=["hits.hits.fields.id"],
-            request_timeout=100,
+            request_timeout=10,
         )
         # print(f"=finished one query :{res}")
         return [int(h["fields"]["id"][0]) - 1 for h in res["hits"]["hits"]]
@@ -127,4 +128,4 @@ class OpenSearchKNN(BaseANN):
     def freeIndex(self):
         if (self.client.indices.exists(index=self.name)):
             print(f"Removing old index: {self.name}")
-            self.client.indices.delete(index=self.name)
+            self.client.indices.delete(index=self.name, request_timeout=1000)
